@@ -370,16 +370,27 @@ export const useKanbanStore = defineStore('kanban', () => {
 			...updatedBucketData,
 		}
 
-		setBucketByIndex(bucketIndex, updatedBucket)
+		if (bucketIndex !== -1) {
+			setBucketByIndex(bucketIndex, updatedBucket)
+		}
 
 		const bucketService = new BucketService()
 		try {
 			const returnedBucket = await bucketService.update(updatedBucket)
-			setBucketByIndex(bucketIndex, returnedBucket)
+			// The buckets in the store may have been replaced while the request was in flight
+			// (e.g. the user navigated to another project's board), so the index captured above
+			// can point at a different bucket now. Look the bucket up again by its id.
+			const currentIndex = findIndexById(buckets.value, returnedBucket.id)
+			if (currentIndex !== -1) {
+				setBucketByIndex(currentIndex, returnedBucket)
+			}
 			return returnedBucket
 		} catch (e) {
 			// restore original state
-			setBucketByIndex(bucketIndex, oldBucket)
+			const currentIndex = findIndexById(buckets.value, updatedBucket.id)
+			if (currentIndex !== -1) {
+				setBucketByIndex(currentIndex, oldBucket)
+			}
 
 			throw e
 		} finally {
